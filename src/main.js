@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
     isEmpty
 } from 'lodash'
@@ -28,12 +28,12 @@ export default function BootstrapMessaging() {
     const [messagingURL, setMessagingURL] = useState('');
     const [isExistingConversation, setIsExistingConversation] = useState(false);
     const [existingJwtToken, setExistingJwtToken] = useState("")
+    const [hiddenPrechatValues, setHiddenPrechatValues] = useState({})
 
 
     const getListConversations = (jwt="", url="") => {
         return listConversations(false, jwt, url)
                 .then((response) => {
-                    console.log("getListConversations", jwt, url, response)
                     if (response && response.openConversationsFound > 0 && response.conversations.length) {
                         const openConversations = response.conversations;
                         if (openConversations.length > 1) {
@@ -57,36 +57,28 @@ export default function BootstrapMessaging() {
           (a, v) => ((a[v.slice(0, v.indexOf('='))] = v.slice(v.indexOf('=') + 1)), a),
           {}
         );
-        console.log("paramData", paramData)
        let jwt = ""
         if(!isEmpty(paramData?.jwt) && !isEmpty(paramData?.url)) {
             // setIsExistingConversation(true);
             // setExistingJwtToken(paramData?.jwt)
             const data = await getContinuityJwt(paramData?.jwt, paramData?.url)
             .then((response) => {
-                console.log("______data_____response --->",response, paramData?.jwt, paramData?.url)
                 setIsExistingConversation(true);
                 setExistingJwtToken(paramData?.jwt)
                 jwt = paramData?.jwt
                 // getListConversations(paramData?.jwt, paramData?.url)
                 //     .then((res) => {
-                //         console.log(`______data_____response res Successfully listed the conversations.`, res);
                 //     })
                 //     .catch(err => {
-                //         console.log("koikokokoko")
-                //         console.error(`${err}`);
                 //     });
                 // setJwt(response.accessToken);
                 // setItemInWebStorage(STORAGE_KEYS.JWT, response.accessToken);
             })
             .catch((err) => {
-                console.log("______data_____err",err)
-                console.error(`Something went wrong in fetching a Continuation Access Token: ${err && err.message ? err.message : err}`);
                 // handleMessagingErrors(err);
                 // throw new Error("Failed to fetch a Continuation access token.");
             });
 
-            console.log("______data_____", data)
             // setItemInWebStorage(STORAGE_KEYS.JWT, existingJwtToken);
         } else {
             setIsExistingConversation(false);
@@ -104,18 +96,13 @@ export default function BootstrapMessaging() {
 
         if(!isEmpty(paramData?.orgId) && !isEmpty(paramData?.devName) && !isEmpty(paramData?.url)) {
             initializeMessagingClient(paramData?.orgId, paramData?.devName, paramData?.url, jwt);
+            const {email,full_name,user_uuid,mobile_no}=paramData || {};
+            if(email||full_name||user_uuid||mobile_no){
+                setHiddenPrechatValues({email,full_name,user_uuid,mobile_no})
+            }
         }
     }
 
-
-  
-
-    useEffect(() => {
-        getUrlParams(window.location.href)
-        return () => {
-            setPageLoading(true)
-        }
-    }, [window.location.href])
     useEffect(() => {
         getUrlParams(window.location.href)
         return () => {
@@ -130,7 +117,6 @@ export default function BootstrapMessaging() {
      */
     function initializeMessagingClient(ord_id, deployment_dev_name, messaging_url, jwt="") {
         // Initialize helpers.
-        console.log("initializeMessagingClient", ord_id, deployment_dev_name, messaging_url, jwt)
         initializeWebStorage(ord_id || orgId);
         if(!isEmpty(jwt)) {
             setItemInWebStorage(STORAGE_KEYS.JWT, jwt);
@@ -180,8 +166,8 @@ export default function BootstrapMessaging() {
                 <span className="loadingChat-text">Chat</span>
             </div>
             <div className="loadingChat-body">
-                {Array(15).fill(<><div className="loadingShimmerLeft"></div>
-                    <div className="loadingShimmerRight"></div></>)}
+                {Array(15).fill().map((_,index)=>(<React.Fragment key={index}><div className="loadingShimmerLeft"></div>
+                    <div className="loadingShimmerRight"></div></React.Fragment>))}
             </div>
         </div>
     }
@@ -189,7 +175,7 @@ export default function BootstrapMessaging() {
     return (
         <>
             {
-                isPageLoading ?
+               ( isPageLoading || Object.keys(hiddenPrechatValues).length===0)?
                 getLoadingState() : 
                 <MessagingWindow
                     isExistingConversation={isExistingConversation}
@@ -197,6 +183,7 @@ export default function BootstrapMessaging() {
                     deactivateMessagingButton={appUiReady}
                     getLoadingState={getLoadingState}
                     reInitializeMessagingClient={reInitializeMessagingClient}
+                    hiddenPrechatValues={hiddenPrechatValues}
                 />
             }
         </>
